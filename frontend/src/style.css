@@ -1,0 +1,70 @@
+:root {
+  font-family: 'Pretendard', 'Segoe UI', sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color: #213547;
+  background: #f7f7f7;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; }
+a { text-decoration: none; color: inherit; }
+
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  background: #0f172a;
+  color: white;
+}
+
+.app-header nav { display: flex; gap: 1rem; }
+.app-header nav a { opacity: 0.9; }
+.app-header nav a.router-link-active { font-weight: 700; opacity: 1; }
+
+.theme-btn {
+  border: none;
+  border-radius: 999px;
+  padding: 0.55rem 0.9rem;
+  cursor: pointer;
+}
+
+.page-content {
+  flex: 1;
+  padding: 2rem;
+}
+
+.hero {
+  background: linear-gradient(135deg, #2563eb, #38bdf8);
+  color: white;
+  padding: 3rem;
+  border-radius: 1rem;
+}
+
+.cta {
+  display: inline-block;
+  margin-top: 1rem;
+  background: white;
+  color: #0f172a;
+  padding: 0.7rem 1rem;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.app-footer {
+  padding: 1rem 2rem;
+  text-align: center;
+  background: #e2e8f0;
+  color: #334155;
+}
