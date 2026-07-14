@@ -27,43 +27,55 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { posts as initialPosts } from '../data/mockData'
+import { createPost, getPostById, updatePost } from '../api/posts'
 
 const props = defineProps({ id: { type: [String, Number], required: false } })
 const route = useRoute()
 const router = useRouter()
-const posts = ref([...initialPosts])
 const title = ref('')
 const body = ref('')
 const password = ref('')
 const isEdit = computed(() => Boolean(props.id || route.params.id))
 
-if (isEdit.value) {
-  const target = posts.value.find((item) => String(item.id) === String(props.id || route.params.id))
-  if (target) {
-    title.value = target.title
-    body.value = target.body
-    password.value = target.password
+async function loadPost() {
+  const targetId = props.id || route.params.id
+  if (!isEdit.value || !targetId) return
+  try {
+    const post = await getPostById(targetId)
+    title.value = post.title
+    body.value = post.content
+    password.value = ''
+  } catch (error) {
+    console.error('수정용 게시글 조회 실패:', error)
+    alert('기존 게시글 정보를 불러오지 못했습니다.')
   }
 }
 
-function submitPost() {
+async function submitPost() {
   if (!title.value.trim() || !body.value.trim() || !password.value) {
     alert('제목, 내용, 비밀번호를 모두 입력해주세요.')
     return
   }
 
-  const targetId = Number(props.id || route.params.id)
-  if (isEdit.value && targetId) {
-    posts.value = posts.value.map((item) => (item.id === targetId ? { ...item, title: title.value, body: body.value, password: password.value } : item))
-    router.push(`/board/${targetId}`)
-    return
-  }
+  try {
+    const targetId = Number(props.id || route.params.id)
+    if (isEdit.value && targetId) {
+      await updatePost(targetId, { title: title.value, content: body.value, password: password.value })
+      router.push(`/board/${targetId}`)
+      return
+    }
 
-  const today = new Date().toISOString().slice(0, 10)
-  posts.value = [{ id: Date.now(), title: title.value, body: body.value, password: password.value, views: 0, date: today }, ...posts.value]
-  router.push('/board')
+    await createPost({ title: title.value, content: body.value, password: password.value })
+    router.push('/board')
+  } catch (error) {
+    console.error('게시글 저장 실패:', error)
+    alert('게시글 저장에 실패했습니다.')
+  }
 }
+
+onMounted(() => {
+  loadPost()
+})
 </script>

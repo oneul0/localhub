@@ -3,8 +3,8 @@
     <router-link class="back-link" to="/board">← 게시판으로</router-link>
     <div class="detail-card" v-if="post">
       <h2>{{ post.title }}</h2>
-      <div class="detail-meta"><span class="mono">{{ post.date }}</span><span>·</span><span>👁 조회수 {{ post.views }}</span></div>
-      <div class="detail-body">{{ post.body }}</div>
+      <div class="detail-meta"><span class="mono">{{ formatDate(post.created_at) }}</span><span>·</span><span>👁 조회수 {{ post.view_count }}</span></div>
+      <div class="detail-body">{{ post.content }}</div>
       <div class="detail-actions">
         <button class="btn btn-outline btn-sm" @click="requestPassword('edit')">수정</button>
         <button class="btn btn-primary btn-sm" @click="requestPassword('delete')">삭제</button>
@@ -28,20 +28,27 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { posts as initialPosts } from '../data/mockData'
+import { deletePost, getPostById, verifyPostPassword } from '../api/posts'
 
 const props = defineProps({ id: { type: [String, Number], required: true } })
 const route = useRoute()
 const router = useRouter()
-const posts = ref([...initialPosts])
+const post = ref(null)
 const passwordInput = ref('')
 const passwordError = ref(false)
 const showModal = ref(false)
 const pendingAction = ref(null)
 
-const post = computed(() => posts.value.find((item) => String(item.id) === String(props.id || route.params.id)))
+async function loadPost() {
+  try {
+    post.value = await getPostById(props.id || route.params.id)
+  } catch (error) {
+    console.error('게시글 상세 조회 실패:', error)
+    post.value = null
+  }
+}
 
 function requestPassword(type) {
   pendingAction.value = type
@@ -55,18 +62,29 @@ function closeModal() {
   pendingAction.value = null
 }
 
-function confirmPassword() {
+function formatDate(value) {
+  return value ? value.slice(0, 10) : ''
+}
+
+async function confirmPassword() {
   if (!post.value) return
-  if (passwordInput.value !== post.value.password) {
+  try {
+    if (pendingAction.value === 'edit') {
+      await verifyPostPassword(post.value.post_id, passwordInput.value)
+      closeModal()
+      await router.push(`/board/${post.value.post_id}/edit`)
+      return
+    }
+
+    await deletePost(post.value.post_id, passwordInput.value)
+    closeModal()
+    await router.push('/board')
+  } catch (error) {
     passwordError.value = true
-    return
-  }
-  closeModal()
-  if (pendingAction.value === 'edit') {
-    router.push(`/board/${post.value.id}/edit`)
-  } else {
-    posts.value = posts.value.filter((item) => item.id !== post.value.id)
-    router.push('/board')
   }
 }
+
+onMounted(() => {
+  loadPost()
+})
 </script>

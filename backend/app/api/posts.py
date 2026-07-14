@@ -89,6 +89,16 @@ class PasswordRequest(BaseModel):
     password: str
 
 
+@router.post("/{post_id}/verify-password")
+def verify_password(post_id: int, body: PasswordRequest, session: Session = Depends(get_session)) -> dict:
+    post = session.get(Post, post_id)
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    if post.password != body.password:
+        raise HTTPException(status_code=403, detail="Invalid password")
+    return {"detail": "Password verified"}
+
+
 @router.delete("/{post_id}")
 def delete_post(post_id: int, body: PasswordRequest, session: Session = Depends(get_session)) -> dict:
     post = session.get(Post, post_id)

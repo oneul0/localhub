@@ -20,10 +20,10 @@
       <span>제목</span><span style="text-align:right;">조회수</span><span style="text-align:right;">작성일</span>
     </div>
     <div class="board-box">
-      <div v-if="pagedPosts.length" v-for="post in pagedPosts" :key="post.id" class="post-row" @click="openDetail(post.id)">
+      <div v-if="pagedPosts.length" v-for="post in pagedPosts" :key="post.post_id" class="post-row" @click="openDetail(post.post_id)">
         <span class="post-title">{{ post.title }}</span>
-        <span class="post-views">👁 {{ post.views }}</span>
-        <span class="post-date mono">{{ post.date }}</span>
+        <span class="post-views">👁 {{ post.view_count }}</span>
+        <span class="post-date mono">{{ formatDate(post.created_at) }}</span>
       </div>
       <div v-else class="empty-state">검색 결과가 없어요. 다른 키워드로 시도해보세요.</div>
     </div>
@@ -35,12 +35,12 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { posts as initialPosts } from '../data/mockData'
+import { getPosts } from '../api/posts'
 
 const router = useRouter()
-const posts = ref([...initialPosts])
+const posts = ref([])
 const query = ref('')
 const sort = ref('latest')
 const currentPage = ref(1)
@@ -48,14 +48,32 @@ const pageSize = 4
 
 const filteredPosts = computed(() => {
   const q = query.value.trim().toLowerCase()
-  const base = [...posts.value].filter((post) => !q || post.title.toLowerCase().includes(q) || post.body.toLowerCase().includes(q))
-  return base.sort((a, b) => (sort.value === 'views' ? b.views - a.views : b.id - a.id))
+  const base = [...posts.value].filter((post) => !q || post.title.toLowerCase().includes(q) || post.content.toLowerCase().includes(q))
+  return base.sort((a, b) => (sort.value === 'views' ? b.view_count - a.view_count : b.post_id - a.post_id))
 })
 
 const totalPages = computed(() => Math.max(1, Math.ceil(filteredPosts.value.length / pageSize)))
 const pagedPosts = computed(() => filteredPosts.value.slice((currentPage.value - 1) * pageSize, currentPage.value * pageSize))
 
+async function loadPosts() {
+  try {
+    const data = await getPosts(1, 100)
+    posts.value = data
+  } catch (error) {
+    console.error('게시글 로딩 실패:', error)
+    alert('게시글을 불러오지 못했습니다.')
+  }
+}
+
+function formatDate(value) {
+  return value ? value.slice(0, 10) : ''
+}
+
 function openDetail(id) {
   router.push(`/board/${id}`)
 }
+
+onMounted(() => {
+  loadPosts()
+})
 </script>

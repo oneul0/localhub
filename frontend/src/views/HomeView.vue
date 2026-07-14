@@ -27,21 +27,40 @@
 </template>
 
 <script setup>
-import { onMounted, computed } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { posts, places } from '../data/mockData'
+import { places } from '../data/mockData'
 import SectionHeader from '../components/shared/SectionHeader.vue'
 import CategoryCard from '../components/shared/CategoryCard.vue'
 import PostList from '../components/shared/PostList.vue'
+import { getPosts } from '../api/posts'
 
 const router = useRouter()
-const recentPosts = computed(() => [...posts].sort((a, b) => b.id - a.id).slice(0, 4))
+const recentPosts = ref([])
+
+async function loadRecentPosts() {
+  try {
+    const posts = await getPosts(1, 4)
+    recentPosts.value = posts.map((post) => ({
+      id: post.post_id,
+      title: post.title,
+      views: post.view_count,
+      date: post.created_at.slice(0, 10),
+      body: post.content,
+      password: ''
+    }))
+  } catch (error) {
+    console.error('최근 게시글 로딩 실패:', error)
+  }
+}
 
 function goDetail(id) {
   router.push(`/board/${id}`)
 }
 
 onMounted(() => {
+  loadRecentPosts()
+
   const L = window.L
   if (!L || document.getElementById('leaflet-map-home')._leaflet_id) return
   const map = L.map('leaflet-map-home', { scrollWheelZoom: false }).setView([35.13, 129.1], 11)
