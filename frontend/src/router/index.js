@@ -1,14 +1,17 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
-import PlacesView from '../views/PlacesView.vue'
 import BoardView from '../views/BoardView.vue'
-import ChatbotView from '../views/ChatbotView.vue'
+import PostDetailView from '../views/PostDetailView.vue'
+import PostFormView from '../views/PostFormView.vue'
+import MapView from '../views/MapView.vue'
 
 const routes = [
   { path: '/', name: 'home', component: HomeView },
-  { path: '/places', name: 'places', component: PlacesView },
   { path: '/board', name: 'board', component: BoardView },
-  { path: '/chatbot', name: 'chatbot', component: ChatbotView }
+  { path: '/board/:id', name: 'post-detail', component: PostDetailView, props: true },
+  { path: '/write', name: 'post-create', component: PostFormView },
+  { path: '/board/:id/edit', name: 'post-edit', component: PostFormView, props: true },
+  { path: '/map', name: 'map', component: MapView }
 ]
 
 const router = createRouter({
