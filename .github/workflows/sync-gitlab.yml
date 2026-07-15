@@ -1,9 +1,10 @@
 name: Sync GitLab to GitHub
 
 on:
-  schedule:
-    - cron: "*/10 * * * *"
-  workflow_dispatch:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
 
 jobs:
   sync:
@@ -12,11 +13,14 @@ jobs:
     steps:
       - name: Clone SSAFY GitLab repository
         env:
-          GITLAB_USERNAME: ${{ secrets.GITLAB_USERNAME }}
           GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
         run: |
-          git clone --mirror \
-            "https://${GITLAB_USERNAME}:${GITLAB_TOKEN}@lab.ssafy.com/s16/a11/00.startcamp/teamproject/3team_project.git" \
+          BASIC_AUTH=$(printf 'token:%s' "$GITLAB_TOKEN" | base64 -w 0)
+
+          git \
+            -c "http.extraHeader=Authorization: Basic ${BASIC_AUTH}" \
+            clone --mirror \
+            "https://lab.ssafy.com/s16/a11/00.startcamp/teamproject/3team_project.git" \
             source.git
 
       - name: Push to personal GitHub
