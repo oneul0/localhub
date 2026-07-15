@@ -12,6 +12,7 @@
         <router-link to="/" class="nav-btn">홈</router-link>
         <router-link to="/board" class="nav-btn">게시판</router-link>
         <router-link to="/map" class="nav-btn">지도</router-link>
+        <router-link to="/festivals" class="nav-btn">축제 캘린더</router-link>
       </nav>
     </div>
   </header>

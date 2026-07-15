@@ -147,7 +147,9 @@ footer{padding:30px 20px 50px;text-align:center;color:var(--ink-soft);font-size:
   .post-views{grid-area:views;} 
   .post-title{grid-area:title;white-space:normal;} 
   .post-date{grid-area:date;text-align:left;} 
-  .main{display:none;} 
+  .top-inner{align-items:flex-start;flex-direction:column;gap:10px;}
+  .main{display:flex;width:100%;overflow-x:auto;}
+  .nav-btn{flex:none;white-space:nowrap;}
   .chat-panel{right:12px;left:12px;width:auto;bottom:88px;} 
   .chat-fab{right:18px;bottom:18px;} 
 }
