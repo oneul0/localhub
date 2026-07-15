@@ -2,5 +2,5 @@ fastapi
 uvicorn[standard]
 sqlmodel
 python-dotenv
-openai
+google-genai
 pydantic-settings
