@@ -1,7 +1,8 @@
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from openai import OpenAI
+from google import genai
+from google.genai import types
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
@@ -48,8 +49,8 @@ def extract_related_places_from_answer(answer: str, session: Session) -> List[Pl
 
 @router.post("/query", response_model=ChatResponse)
 def query_chatbot(request: ChatRequest, session: Session = Depends(get_session)) -> ChatResponse:
-    if not settings.openai_api_key:
-        raise HTTPException(status_code=500, detail="OpenAI API key is not configured")
+    if not settings.gemini_api_key:
+        raise HTTPException(status_code=500, detail="Gemini API key is not configured")
 
     prompt = (
         "당신은 부산 여행을 돕는 친절한 안내자입니다. "
@@ -57,21 +58,34 @@ def query_chatbot(request: ChatRequest, session: Session = Depends(get_session))
         "부산 관광지 정보를 언급할 때는 데이터베이스에 있는 장소를 참고해 답변에 포함하세요."
     )
     try:
-        client = OpenAI(api_key=settings.openai_api_key)
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": prompt},
-                {"role": "user", "content": request.message},
-            ],
-            max_tokens=500,
-            temperature=0.9,
+        client = genai.Client(
+            api_key=settings.gemini_api_key,
+            http_options=types.HttpOptions(
+                retry_options=types.HttpRetryOptions(
+                    attempts=3,
+                    initial_delay=1.0,
+                    max_delay=4.0,
+                    exp_base=2.0,
+                    jitter=0.5,
+                    http_status_codes=[503],
+                )
+            ),
         )
-        answer = response.choices[0].message.content or ""
+        try:
+            response = client.models.generate_content(
+                model=settings.gemini_model,
+                contents=request.message,
+                config=types.GenerateContentConfig(
+                    system_instruction=prompt,
+                    max_output_tokens=500,
+                    temperature=0.9,
+                ),
+            )
+            answer = response.text or ""
+        finally:
+            client.close()
     except Exception as exc:
         detail = str(exc)
-        if hasattr(exc, "status_code"):
-            detail = f"Error code: {exc.status_code} - {detail}"
         raise HTTPException(status_code=502, detail=detail)
 
     answer = answer.strip()
