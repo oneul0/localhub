@@ -9,12 +9,19 @@
         <button @click="toggleChat">✕</button>
       </div>
       <div class="chat-body">
-        <div v-for="(message, index) in messages" :key="index" :class="['msg', message.role]">{{ message.text }}</div>
+        <div v-for="(message, index) in messages" :key="index" :class="['msg', message.role]">
+          <div>{{ message.text }}</div>
+          <div v-if="message.relatedPlaces?.length" class="related-places">
+            <div v-for="place in message.relatedPlaces" :key="place.contentid" class="related-place">
+              • {{ place.title || place.contentid }}
+            </div>
+          </div>
+        </div>
       </div>
       <div class="quick-replies">
         <button @click="sendQuick('부산 관광지 추천해줘')">관광지 추천</button>
-        <button @click="sendQuick('이번 축제 일정 알려줘')">축제 일정</button>
-        <button @click="sendQuick('맛집 위치 알려줘')">맛집 위치</button>
+        <button @click="sendQuick('부산 축제 일정 알려줘')">축제 일정</button>
+        <button @click="sendQuick('부산 대표 숙소 위치 알려줘')">숙소 위치</button>
       </div>
       <div class="chat-input">
         <input v-model="inputText" type="text" placeholder="궁금한 지역 정보를 물어보세요" @keydown.enter="sendChat" />
@@ -26,7 +33,7 @@
 
 <script setup>
 import { ref } from 'vue'
-import { places } from '../../data/mockData'
+import { sendChatMessage } from '../../api/chatbot'
 
 const isOpen = ref(false)
 const inputText = ref('')
@@ -41,27 +48,19 @@ function sendQuick(text) {
   sendChat()
 }
 
-function sendChat() {
+async function sendChat() {
   const text = inputText.value.trim()
   if (!text) return
+
   messages.value.push({ role: 'user', text })
   inputText.value = ''
-  setTimeout(() => {
-    messages.value.push({ role: 'bot', text: botReply(text) })
-  }, 300)
-}
 
-function botReply(text) {
-  const t = text.toLowerCase()
-  if (t.includes('축제') || t.includes('행사') || t.includes('일정')) {
-    return `다가오는 부산 축제·행사예요:\n${places.filter((p) => p.cat === '축제·행사').map((p) => `• ${p.name} — ${p.desc}`).join('\n')}`
+  try {
+    const response = await sendChatMessage(text)
+    messages.value.push({ role: 'bot', text: response.answer, relatedPlaces: response.related_places || [] })
+  } catch (error) {
+    console.error('챗봇 응답 실패:', error)
+    messages.value.push({ role: 'bot', text: '챗봇 응답을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.' })
   }
-  if (t.includes('맛집') || t.includes('음식')) {
-    return `부산 맛집 추천이에요:\n${places.filter((p) => p.cat === '맛집').map((p) => `• ${p.name} — ${p.desc}`).join('\n')}`
-  }
-  if (t.includes('관광') || t.includes('추천') || t.includes('여행')) {
-    return `부산 관광지 추천이에요:\n${places.filter((p) => p.cat === '관광지').map((p) => `• ${p.name} — ${p.desc}`).join('\n')}`
-  }
-  return '아직 배우는 중이에요 🙏 "관광지 추천", "축제 일정", "맛집 위치", "게시글 검색" 같은 질문을 해보세요.'
 }
 </script>
