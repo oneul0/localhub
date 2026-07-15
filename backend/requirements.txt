@@ -4,3 +4,5 @@ sqlmodel
 python-dotenv
 google-genai
 pydantic-settings
+pytest
+pytest-mock

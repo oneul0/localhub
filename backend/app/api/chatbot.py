@@ -77,7 +77,7 @@ def query_chatbot(request: ChatRequest, session: Session = Depends(get_session))
                 contents=request.message,
                 config=types.GenerateContentConfig(
                     system_instruction=prompt,
-                    max_output_tokens=500,
+                    max_output_tokens=2000,
                     temperature=0.9,
                 ),
             )
@@ -96,4 +96,14 @@ def query_chatbot(request: ChatRequest, session: Session = Depends(get_session))
             statement = select(Place).where(Place.contentid.in_(place_ids))
             related_places = session.exec(statement).all()
 
-    return ChatResponse(answer=answer, related_places=related_places)
+    related_places_response = [
+        RelatedPlace(
+            contentid=p.contentid,
+            title=p.title,
+            mapx=p.mapx,
+            mapy=p.mapy
+        )
+        for p in related_places
+    ]
+
+    return ChatResponse(answer=answer, related_places=related_places_response)
