@@ -1,0 +1,32 @@
+name: Sync GitLab to GitHub
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clone SSAFY GitLab repository
+        env:
+          GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
+        run: |
+          BASIC_AUTH=$(printf 'token:%s' "$GITLAB_TOKEN" | base64 -w 0)
+
+          git \
+            -c "http.extraHeader=Authorization: Basic ${BASIC_AUTH}" \
+            clone --mirror \
+            "https://lab.ssafy.com/s16/a11/00.startcamp/teamproject/3team_project.git" \
+            source.git
+
+      - name: Push to personal GitHub
+        env:
+          GH_PUSH_TOKEN: ${{ secrets.GH_PUSH_TOKEN }}
+        run: |
+          cd source.git
+          git push --mirror \
+            "https://x-access-token:${GH_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
