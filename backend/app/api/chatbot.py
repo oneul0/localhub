@@ -50,8 +50,6 @@ def extract_related_places_from_answer(answer: str, session: Session) -> List[Pl
 def query_chatbot(request: ChatRequest, session: Session = Depends(get_session)) -> ChatResponse:
     if not settings.openai_api_key:
         raise HTTPException(status_code=500, detail="OpenAI API key is not configured")
-    else:
-        print(settings.openai_api_key)
 
     prompt = (
         "당신은 부산 여행을 돕는 친절한 안내자입니다. "
