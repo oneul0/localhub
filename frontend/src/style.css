@@ -44,8 +44,8 @@ main{width:100%;max-width:1440px;margin:0 auto;padding:0 24px 90px;box-sizing:bo
 .hero{position:relative;margin-top:20px;padding:56px 40px 76px;background:linear-gradient(120deg,var(--blue-dark) 0%,var(--blue) 60%,#3F7FEF 100%);border-radius:22px;color:#fff;overflow:hidden;}
 .hero::before{content:"";position:absolute;right:-60px;top:-60px;width:280px;height:280px;border-radius:50%;background:radial-gradient(circle, rgba(232,178,61,0.35), transparent 70%);} 
 .hero-eyebrow{font-size:0.8rem;letter-spacing:0.18em;text-transform:uppercase;color:var(--gold);font-weight:700;} 
-.hero h1{font-size:clamp(1.9rem, 4.4vw, 3.1rem);margin:10px 0 12px;line-height:1.15;} 
-.hero p{font-size:1.02rem;max-width:520px;color:rgba(255,255,255,0.86);line-height:1.6;margin:0 0 26px;} 
+.hero h1{font-size:clamp(1.9rem, 4.4vw, 3.1rem);margin:18px 0 20px;line-height:1.35;} 
+.hero p{font-size:1.02rem;max-width:520px;color:rgba(255,255,255,0.86);line-height:1.75;margin:0 0 32px;} 
 .hero-actions{display:flex;gap:12px;flex-wrap:wrap;}
 .btn{display:inline-flex;align-items:center;gap:8px;padding:12px 20px;border-radius:11px;font-weight:700;font-size:0.94rem;border:1px solid transparent;transition:transform .15s ease, box-shadow .15s ease;}
 .btn:hover{transform:translateY(-2px);} 
