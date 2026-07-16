@@ -101,7 +101,16 @@ flowchart LR
     subgraph BE["Backend · FastAPI"]
         P["Posts Router"]
         L["Places Router"]
-        B["Chatbot Router"]
+
+        subgraph CHAT["Chatbot Router"]
+            B["POST /api/chatbot/query"]
+            PS["Provider Selector<br/>모드 확인 · API 키 필터링"]
+            OC["OpenAI Client<br/>gpt-5-mini"]
+            GC["Gemini Client<br/>GEMINI_MODEL"]
+            PM["관련 장소 매칭<br/>장소명 → 숫자 ID 폴백"]
+        end
+
+        CFG["Settings<br/>auto · openai · gemini"]
         S["SQLModel Session"]
     end
 
@@ -122,10 +131,18 @@ flowchart LR
     A --> B
     P --> S
     L --> S
-    B --> S
     S --> DB
-    B --> OA
-    B --> G
+    CFG --> PS
+    B --> PS
+    PS -->|"openai 또는 auto 우선"| OC
+    PS -->|"gemini"| GC
+    OC --> OA
+    OC -. "auto 모드에서 실패" .-> GC
+    GC --> G
+    OC --> PM
+    GC --> PM
+    PM --> S
+    PM --> B
     M --> O
 ```
 
@@ -134,8 +151,12 @@ flowchart LR
 1. Vue Router가 화면 전환을 담당하고 Axios 공통 클라이언트가 FastAPI에 요청합니다.
 2. FastAPI는 `posts`, `places`, `chatbot` 라우터로 요청을 분리합니다.
 3. 게시판과 장소 API는 SQLModel 세션을 통해 SQLite에 접근합니다.
-4. 챗봇은 선택된 OpenAI 또는 Gemini 공급자의 응답을 받은 뒤 `place` 테이블에서 관련 장소를 찾아 응답에 결합합니다.
-5. 지도·축제 화면은 정적 JSON을 직접 사용하며, 장소 DB는 `load_places.py`를 실행해 별도로 적재합니다.
+4. 챗봇 요청은 `CHATBOT_PROVIDER` 설정과 API 키 보유 여부를 기준으로 호출 가능한 공급자 목록을 구성합니다.
+5. `openai`와 `gemini` 모드는 지정한 공급자만 호출합니다. 기본값인 `auto`는 OpenAI를 우선 호출하고, 키가 없거나 호출에 실패하면 Gemini를 사용합니다.
+6. OpenAI는 코드에 고정된 `gpt-5-mini`를 Responses API로 호출하고, Gemini는 `GEMINI_MODEL`에 설정된 모델을 호출합니다.
+7. 생성된 답변에서 장소명을 먼저 검색하고, 결과가 없으면 숫자 `contentid`로 다시 검색해 `related_places`를 구성합니다.
+8. 사용할 수 있는 API 키가 없으면 `500`, 구성된 공급자가 모두 실패하면 `502`를 반환합니다.
+9. 지도·축제 화면은 정적 JSON을 직접 사용하며, 장소 DB는 `load_places.py`를 실행해 별도로 적재합니다.
 
 현재 Vue 화면이 직접 호출하는 REST API는 게시글과 챗봇 API입니다. 장소 API는 독립적으로 제공되며 지도 화면에는 아직 연결되어 있지 않습니다.
 
@@ -145,8 +166,8 @@ flowchart LR
 .
 ├── backend/
 │   ├── app/
-│   │   ├── api/          # 게시글, 장소, 챗봇 라우터
-│   │   ├── core/         # 환경 설정
+│   │   ├── api/          # 게시글·장소 라우터, 챗봇 공급자 선택 및 호출
+│   │   ├── core/         # DB·챗봇 공급자·API 키 환경 설정
 │   │   ├── db/           # SQLModel 모델, 엔진, 세션
 │   │   └── main.py       # FastAPI 앱 및 CORS 설정
 │   ├── scripts/          # 장소 JSON → DB 적재 스크립트
