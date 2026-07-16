@@ -1,16 +1,17 @@
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional
 
-from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 
 
 class Settings(BaseSettings):
-    database_url: str = Field(default="sqlite:///./localhub.db", env="DATABASE_URL")
-    gemini_api_key: Optional[str] = Field(default=None, env="GEMINI_API_KEY")
-    gemini_model: str = Field(default="gemini-3.5-flash", env="GEMINI_MODEL")
+    database_url: str = "sqlite:///./localhub.db"
+    chatbot_provider: Literal["auto", "openai", "gemini"] = "auto"
+    openai_api_key: Optional[str] = None
+    gemini_api_key: Optional[str] = None
+    gemini_model: str = "gemini-3.5-flash"
     allowed_origins: list[str] = ["*"]
 
     model_config = SettingsConfigDict(
