@@ -61,44 +61,61 @@ def test_extract_related_places_no_match(session):
 
 # --- 2. Integration Tests ---
 
-# 챗봇 질의 API 호출 성공 및 관련 장소 매칭 추천이 정상 응답되는지 테스트
-def test_query_chatbot_success(client, session, mocker):
-    # Setup key and mock model
-    mocker.patch.object(settings, "gemini_api_key", "test_gemini_key")
-    mocker.patch.object(settings, "gemini_model", "test-model")
+# OpenAI Responses API 응답과 관련 장소를 정상 반환하는지 테스트
+def test_query_chatbot_openai_success(client, session, mocker):
+    mocker.patch.object(settings, "chatbot_provider", "openai")
+    mocker.patch.object(settings, "openai_api_key", "test_openai_key")
 
-    # Mock Google GenAI Client
     mock_client = mocker.MagicMock()
     mock_response = mocker.MagicMock()
-    mock_response.text = "광안대교 야경이 참 아름다워요."
-    mock_client.models.generate_content.return_value = mock_response
-    mocker.patch("google.genai.Client", return_value=mock_client)
+    mock_response.output_text = "광안대교 야경이 참 아름다워요."
+    mock_client.responses.create.return_value = mock_response
+    mocker.patch("app.api.chatbot.OpenAI", return_value=mock_client)
 
-    # Populate DB
     place = Place(contentid="999", title="광안대교", mapx=129.2, mapy=35.2)
     session.add(place)
     session.commit()
 
-    # Query API
     response = client.post("/api/chatbot/query", json={"message": "광안대교 어때?"})
     assert response.status_code == 200
     data = response.json()
     assert "광안대교" in data["answer"]
     assert len(data["related_places"]) == 1
     assert data["related_places"][0]["contentid"] == "999"
+    mock_client.responses.create.assert_called_once()
+    assert mock_client.responses.create.call_args.kwargs["model"] == "gpt-5-mini"
+    mock_client.close.assert_called_once()
+
+
+# Gemini 단독 모드에서도 기존 호출 방식이 유지되는지 테스트
+def test_query_chatbot_gemini_success(client, mocker):
+    mocker.patch.object(settings, "chatbot_provider", "gemini")
+    mocker.patch.object(settings, "gemini_api_key", "test_gemini_key")
+    mocker.patch.object(settings, "gemini_model", "test-gemini-model")
+
+    mock_client = mocker.MagicMock()
+    mock_response = mocker.MagicMock()
+    mock_response.text = "부산 여행을 도와드릴게요."
+    mock_client.models.generate_content.return_value = mock_response
+    mocker.patch("app.api.chatbot.genai.Client", return_value=mock_client)
+
+    response = client.post("/api/chatbot/query", json={"message": "안녕하세요"})
+    assert response.status_code == 200
+    assert response.json()["answer"] == "부산 여행을 도와드릴게요."
+    mock_client.models.generate_content.assert_called_once()
+    mock_client.close.assert_called_once()
 
 
 # 답변 텍스트 매칭 실패 시 답변 내 ID 정보 기반 폴백 매칭이 정상 작동하는지 테스트
 def test_query_chatbot_fallback_id(client, session, mocker):
-    mocker.patch.object(settings, "gemini_api_key", "test_gemini_key")
-    mocker.patch.object(settings, "gemini_model", "test-model")
+    mocker.patch.object(settings, "chatbot_provider", "openai")
+    mocker.patch.object(settings, "openai_api_key", "test_openai_key")
 
-    # Mock Client
     mock_client = mocker.MagicMock()
     mock_response = mocker.MagicMock()
-    mock_response.text = "제가 추천하는 곳의 번호는 777 입니다."
-    mock_client.models.generate_content.return_value = mock_response
-    mocker.patch("google.genai.Client", return_value=mock_client)
+    mock_response.output_text = "제가 추천하는 곳의 번호는 777 입니다."
+    mock_client.responses.create.return_value = mock_response
+    mocker.patch("app.api.chatbot.OpenAI", return_value=mock_client)
 
     # Populate DB
     place = Place(contentid="777", title="숨겨진 관광지", mapx=129.3, mapy=35.3)
@@ -113,27 +130,95 @@ def test_query_chatbot_fallback_id(client, session, mocker):
     assert data["related_places"][0]["contentid"] == "777"
 
 
-# Gemini API 키 설정이 누락되었을 때 500 에러를 반환하는지 테스트
+# auto 모드에서 OpenAI가 성공하면 Gemini를 호출하지 않는지 테스트
+def test_query_chatbot_auto_prefers_openai(client, mocker):
+    mocker.patch.object(settings, "chatbot_provider", "auto")
+    mocker.patch.object(settings, "openai_api_key", "test_openai_key")
+    mocker.patch.object(settings, "gemini_api_key", "test_gemini_key")
+    openai_call = mocker.patch(
+        "app.api.chatbot.call_openai",
+        return_value="OpenAI 응답",
+    )
+    gemini_call = mocker.patch("app.api.chatbot.call_gemini")
+
+    response = client.post("/api/chatbot/query", json={"message": "질문"})
+
+    assert response.status_code == 200
+    assert response.json()["answer"] == "OpenAI 응답"
+    openai_call.assert_called_once()
+    gemini_call.assert_not_called()
+
+
+# auto 모드에서 Gemini 키만 있으면 Gemini를 바로 사용하는지 테스트
+def test_query_chatbot_auto_uses_only_available_gemini(client, mocker):
+    mocker.patch.object(settings, "chatbot_provider", "auto")
+    mocker.patch.object(settings, "openai_api_key", None)
+    mocker.patch.object(settings, "gemini_api_key", "test_gemini_key")
+    openai_call = mocker.patch("app.api.chatbot.call_openai")
+    gemini_call = mocker.patch(
+        "app.api.chatbot.call_gemini",
+        return_value="Gemini 단독 응답",
+    )
+
+    response = client.post("/api/chatbot/query", json={"message": "질문"})
+
+    assert response.status_code == 200
+    assert response.json()["answer"] == "Gemini 단독 응답"
+    openai_call.assert_not_called()
+    gemini_call.assert_called_once()
+
+
+# auto 모드에서 OpenAI 실패 시 Gemini로 폴백하는지 테스트
+def test_query_chatbot_auto_falls_back_to_gemini(client, mocker):
+    mocker.patch.object(settings, "chatbot_provider", "auto")
+    mocker.patch.object(settings, "openai_api_key", "test_openai_key")
+    mocker.patch.object(settings, "gemini_api_key", "test_gemini_key")
+    openai_call = mocker.patch(
+        "app.api.chatbot.call_openai",
+        side_effect=Exception("OpenAI unavailable"),
+    )
+    gemini_call = mocker.patch(
+        "app.api.chatbot.call_gemini",
+        return_value="Gemini 폴백 응답",
+    )
+
+    response = client.post("/api/chatbot/query", json={"message": "질문"})
+
+    assert response.status_code == 200
+    assert response.json()["answer"] == "Gemini 폴백 응답"
+    openai_call.assert_called_once()
+    gemini_call.assert_called_once()
+
+
+# 선택된 공급자에 사용 가능한 API 키가 없을 때 500 에러를 반환하는지 테스트
 def test_query_chatbot_key_missing(client, mocker):
+    mocker.patch.object(settings, "chatbot_provider", "auto")
+    mocker.patch.object(settings, "openai_api_key", None)
     mocker.patch.object(settings, "gemini_api_key", None)
 
-    # Query API
     response = client.post("/api/chatbot/query", json={"message": "안녕하세요"})
     assert response.status_code == 500
-    assert response.json()["detail"] == "Gemini API key is not configured"
+    assert response.json()["detail"] == (
+        "No API key is configured for the selected chatbot provider(s)"
+    )
 
 
-# Gemini API 호출 과정에서 에러 발생 시 502 에러를 반환하는지 테스트
-def test_query_chatbot_api_error(client, mocker):
+# 구성된 모든 공급자가 실패하면 502 에러를 반환하는지 테스트
+def test_query_chatbot_all_providers_fail(client, mocker):
+    mocker.patch.object(settings, "chatbot_provider", "auto")
+    mocker.patch.object(settings, "openai_api_key", "test_openai_key")
     mocker.patch.object(settings, "gemini_api_key", "test_gemini_key")
-    mocker.patch.object(settings, "gemini_model", "test-model")
+    mocker.patch(
+        "app.api.chatbot.call_openai",
+        side_effect=Exception("OpenAI unavailable"),
+    )
+    mocker.patch(
+        "app.api.chatbot.call_gemini",
+        side_effect=Exception("Gemini unavailable"),
+    )
 
-    # Mock Client to raise exception
-    mock_client = mocker.MagicMock()
-    mock_client.models.generate_content.side_effect = Exception("API Quota Exceeded")
-    mocker.patch("google.genai.Client", return_value=mock_client)
-
-    # Query API
     response = client.post("/api/chatbot/query", json={"message": "에러 발생해라"})
     assert response.status_code == 502
-    assert "API Quota Exceeded" in response.json()["detail"]
+    assert response.json()["detail"] == (
+        "All configured chatbot providers failed: openai, gemini"
+    )

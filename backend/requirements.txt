@@ -3,6 +3,7 @@ uvicorn[standard]
 sqlmodel
 python-dotenv
 google-genai
+openai
 pydantic-settings
 pytest
 pytest-mock
